@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Universe Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body class="bg-black">
+    <div id="loading" class="loading">
+        <div>Initializing Universe...</div>
+        <div id="loadingProgress" class="mt-4">0%</div>
+    </div>
+
+    <canvas id="universeCanvas" class="universe-canvas"></canvas>
+
+    <div class="info-panel">
+        <h2 class="text-xl font-bold mb-2">Universe Status</h2>
+        <div id="universeInfo">
+            <div>Time: <span id="timeDisplay">0</span> years</div>
+            <div>Scale: <span id="scaleDisplay">1.0</span></div>
+            <div>Civilizations: <span id="civCount">0</span></div>
+            <div>Stars: <span id="starCount">0</span></div>
+            <div>Planets: <span id="planetCount">0</span></div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <h2 class="text-xl font-bold mb-2">Controls</h2>
+        <div class="flex space-x-2 mb-2">
+            <button id="pauseBtn" class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded">Pause</button>
+            <button id="resetBtn" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded">Reset</button>
+        </div>
+        <div class="mb-2">
+            <label for="timeScale" class="block">Time Scale:</label>
+            <input type="range" id="timeScale" min="0" max="1000" value="1" class="w-full">
+            <span id="timeScaleValue">1x</span>
+        </div>
+        <div class="mb-2">
+            <label for="viewMode" class="block">View Mode:</label>
+            <select id="viewMode" class="w-full bg-gray-800 text-white p-1 rounded">
+                <option value="galactic">Galactic View</option>
+                <option value="solar">Solar System</option>
+                <option value="planetary">Planetary View</option>
+                <option value="quantum">Quantum Field</option>
+            </select>
+        </div>
+    </div>
+
+
+    <script src="script,js"></script>
+</body>
+
+</html>

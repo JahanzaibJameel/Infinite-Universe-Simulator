@@ -1,0 +1,566 @@
+// Universe Simulation Core
+class UniverseSimulator {
+    constructor() {
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.clock = new THREE.Clock();
+        this.timeScale = 1;
+        this.isPaused = false;
+        this.universeTime = 0; // In years
+
+        // Universe state
+        this.galaxies = [];
+        this.stars = [];
+        this.planets = [];
+        this.civilizations = [];
+        this.quantumFields = [];
+
+        // Initialize the simulation
+        this.init();
+    }
+
+    init() {
+        this.setupThreeJS();
+        this.generateInitialUniverse();
+        this.setupEventListeners();
+        this.animate();
+
+        // Hide loading screen
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    setupThreeJS() {
+        // Scene setup
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000010);
+
+        // Camera setup
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100000);
+        this.camera.position.set(0, 50, 100);
+
+        // Renderer setup
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('universeCanvas'),
+            antialias: true
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+
+        // Add some basic lighting
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        this.scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 1);
+        this.scene.add(directionalLight);
+
+        // Add stars as background
+        this.createStarField();
+    }
+
+    createStarField() {
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 10000;
+        const positions = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 2000;
+            positions[i + 1] = (Math.random() - 0.5) * 2000;
+            positions[i + 2] = (Math.random() - 0.5) * 2000;
+        }
+
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const starMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.7,
+            sizeAttenuation: true
+        });
+
+        const starField = new THREE.Points(starGeometry, starMaterial);
+        this.scene.add(starField);
+    }
+
+    generateInitialUniverse() {
+        // Generate initial galaxies
+        this.generateGalaxies(5);
+
+        // Generate initial quantum fields
+        this.generateQuantumFields();
+
+        // Update UI counters
+        this.updateUI();
+    }
+
+    generateGalaxies(count) {
+        const galaxyTypes = ['spiral', 'elliptical', 'irregular'];
+
+        for (let i = 0; i < count; i++) {
+            const type = galaxyTypes[Math.floor(Math.random() * galaxyTypes.length)];
+            const galaxy = {
+                id: i,
+                type: type,
+                position: new THREE.Vector3(
+                    (Math.random() - 0.5) * 1000,
+                    (Math.random() - 0.5) * 1000,
+                    (Math.random() - 0.5) * 1000
+                ),
+                stars: [],
+                age: Math.random() * 10 // Billions of years
+            };
+
+            // Generate stars for this galaxy
+            const starCount = 100 + Math.floor(Math.random() * 400);
+            this.generateStars(galaxy, starCount);
+
+            this.galaxies.push(galaxy);
+            this.visualizeGalaxy(galaxy);
+        }
+    }
+
+    generateStars(galaxy, count) {
+        for (let i = 0; i < count; i++) {
+            const star = {
+                id: this.stars.length,
+                galaxyId: galaxy.id,
+                type: this.getRandomStarType(),
+                position: new THREE.Vector3(
+                    galaxy.position.x + (Math.random() - 0.5) * 50,
+                    galaxy.position.y + (Math.random() - 0.5) * 50,
+                    galaxy.position.z + (Math.random() - 0.5) * 50
+                ),
+                mass: 0.5 + Math.random() * 3,
+                temperature: 3000 + Math.random() * 27000,
+                age: Math.random() * galaxy.age,
+                planets: []
+            };
+
+            // Generate planets for this star
+            const planetCount = Math.floor(Math.random() * 12);
+            this.generatePlanets(star, planetCount);
+
+            galaxy.stars.push(star);
+            this.stars.push(star);
+            this.visualizeStar(star);
+        }
+    }
+
+    getRandomStarType() {
+        const types = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
+        return types[Math.floor(Math.random() * types.length)];
+    }
+
+    generatePlanets(star, count) {
+        for (let i = 0; i < count; i++) {
+            const distance = 5 + i * 3 + Math.random() * 5;
+            const angle = Math.random() * Math.PI * 2;
+
+            const planet = {
+                id: this.planets.length,
+                starId: star.id,
+                position: new THREE.Vector3(
+                    star.position.x + Math.cos(angle) * distance,
+                    star.position.y,
+                    star.position.z + Math.sin(angle) * distance
+                ),
+                size: 0.2 + Math.random() * 0.8,
+                mass: 0.1 + Math.random() * 2,
+                type: this.getRandomPlanetType(),
+                atmosphere: Math.random() > 0.3,
+                temperature: 100 + Math.random() * 500,
+                life: Math.random() > 0.7,
+                civilization: null
+            };
+
+            // Chance to generate civilization
+            if (planet.life && Math.random() > 0.5) {
+                planet.civilization = this.generateCivilization(planet);
+            }
+
+            star.planets.push(planet);
+            this.planets.push(planet);
+            this.visualizePlanet(planet);
+        }
+    }
+
+    getRandomPlanetType() {
+        const types = ['rocky', 'gas_giant', 'ice_giant', 'ocean', 'lava', 'desert'];
+        return types[Math.floor(Math.random() * types.length)];
+    }
+
+    generateCivilization(planet) {
+        const civ = {
+            id: this.civilizations.length,
+            planetId: planet.id,
+            species: this.generateSpecies(),
+            technology: Math.random(),
+            culture: this.generateCulture(),
+            population: 1000 + Math.floor(Math.random() * 1000000),
+            architecture: this.generateArchitecture(),
+            stories: []
+        };
+
+        // Generate initial stories
+        this.generateStories(civ);
+
+        this.civilizations.push(civ);
+        return civ;
+    }
+
+    generateSpecies() {
+        const bodyTypes = ['humanoid', 'insectoid', 'reptilian', 'avian', 'aquatic', 'energy'];
+        const traits = ['telepathic', 'technological', 'artistic', 'warlike', 'peaceful', 'nomadic'];
+
+        return {
+            name: this.generateSpeciesName(),
+            bodyType: bodyTypes[Math.floor(Math.random() * bodyTypes.length)],
+            primaryTrait: traits[Math.floor(Math.random() * traits.length)],
+            intelligence: 0.5 + Math.random() * 0.5
+        };
+    }
+
+    generateSpeciesName() {
+        const prefixes = ['Xyl', 'Zor', 'Qua', 'Vor', 'Neb', 'Cy', 'Ae', 'Io'];
+        const suffixes = ['thians', 'vians', 'lons', 'noids', 'tarians', 'dians', 'ans'];
+        return prefixes[Math.floor(Math.random() * prefixes.length)] +
+            suffixes[Math.floor(Math.random() * suffixes.length)];
+    }
+
+    generateCulture() {
+        const aspects = ['individualistic', 'collectivist', 'spiritual', 'scientific', 'militaristic', 'artistic'];
+        const values = ['knowledge', 'power', 'harmony', 'exploration', 'tradition', 'innovation'];
+
+        return {
+            primaryAspect: aspects[Math.floor(Math.random() * aspects.length)],
+            coreValue: values[Math.floor(Math.random() * values.length)],
+            complexity: Math.random()
+        };
+    }
+
+    generateArchitecture() {
+        const styles = ['organic', 'geometric', 'minimalist', 'ornate', 'utilitarian', 'monumental'];
+        return styles[Math.floor(Math.random() * styles.length)];
+    }
+
+    generateStories(civ) {
+        const storyTemplates = [
+            `The ${civ.species.name} discovered ${this.getRandomDiscovery()}.`,
+            `A great leader emerged among the ${civ.species.name}.`,
+            `The ${civ.species.name} faced a crisis when ${this.getRandomCrisis()}.`,
+            `A cultural renaissance began among the ${civ.species.name}.`,
+            `The ${civ.species.name} made first contact with another civilization.`
+        ];
+
+        for (let i = 0; i < 3; i++) {
+            civ.stories.push(storyTemplates[Math.floor(Math.random() * storyTemplates.length)]);
+        }
+    }
+
+    getRandomDiscovery() {
+        const discoveries = ['quantum entanglement', 'faster-than-light travel', 'consciousness transfer',
+            'planetary engineering', 'immortality', 'parallel universes'];
+        return discoveries[Math.floor(Math.random() * discoveries.length)];
+    }
+
+    getRandomCrisis() {
+        const crises = ['their star began to die', 'a plague swept their world',
+            'resources became scarce', 'a civil war broke out',
+            'an asteroid threatened their planet'];
+        return crises[Math.floor(Math.random() * crises.length)];
+    }
+
+    generateQuantumFields() {
+        // Create a simple visualization of quantum fields
+        const fieldGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+        const fieldMaterial = new THREE.MeshBasicMaterial({
+            color: 0x2200ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3
+        });
+
+        const quantumField = new THREE.Mesh(fieldGeometry, fieldMaterial);
+        quantumField.rotation.x = -Math.PI / 2;
+        quantumField.position.y = -50;
+        this.scene.add(quantumField);
+
+        this.quantumFields.push(quantumField);
+    }
+
+    visualizeGalaxy(galaxy) {
+        const geometry = new THREE.SphereGeometry(10, 32, 32);
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x4466ff,
+            transparent: true,
+            opacity: 0.7
+        });
+
+        const galaxyMesh = new THREE.Mesh(geometry, material);
+        galaxyMesh.position.copy(galaxy.position);
+        this.scene.add(galaxyMesh);
+
+        galaxy.mesh = galaxyMesh;
+    }
+
+    visualizeStar(star) {
+        const geometry = new THREE.SphereGeometry(0.5 + star.mass * 0.3, 16, 16);
+
+        // Color based on temperature
+        const color = new THREE.Color();
+        if (star.temperature > 10000) {
+            color.setRGB(0.8, 0.9, 1.0); // Blue-white
+        } else if (star.temperature > 6000) {
+            color.setRGB(1.0, 1.0, 0.9); // Yellow-white
+        } else if (star.temperature > 4000) {
+            color.setRGB(1.0, 0.9, 0.7); // Yellow
+        } else {
+            color.setRGB(1.0, 0.7, 0.4); // Orange-red
+        }
+
+        const material = new THREE.MeshBasicMaterial({ color: color });
+        const starMesh = new THREE.Mesh(geometry, material);
+        starMesh.position.copy(star.position);
+        this.scene.add(starMesh);
+
+        // Add glow effect
+        const glowGeometry = new THREE.SphereGeometry(0.7 + star.mass * 0.3, 16, 16);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.3
+        });
+
+        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        starMesh.add(glowMesh);
+
+        star.mesh = starMesh;
+    }
+
+    visualizePlanet(planet) {
+        const geometry = new THREE.SphereGeometry(planet.size, 16, 16);
+
+        // Color based on planet type
+        let color;
+        switch (planet.type) {
+            case 'rocky': color = 0x886644; break;
+            case 'gas_giant': color = 0xffaa66; break;
+            case 'ice_giant': color = 0x66aaff; break;
+            case 'ocean': color = 0x2266ff; break;
+            case 'lava': color = 0xff4422; break;
+            case 'desert': color = 0xffcc88; break;
+            default: color = 0x888888;
+        }
+
+        const material = new THREE.MeshBasicMaterial({ color: color });
+        const planetMesh = new THREE.Mesh(geometry, material);
+        planetMesh.position.copy(planet.position);
+        this.scene.add(planetMesh);
+
+        // Add ring for gas giants
+        if (planet.type === 'gas_giant') {
+            const ringGeometry = new THREE.RingGeometry(planet.size * 1.5, planet.size * 2, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffdd99,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7
+            });
+            const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+            ringMesh.rotation.x = Math.PI / 2;
+            planetMesh.add(ringMesh);
+        }
+
+        planet.mesh = planetMesh;
+    }
+
+    update(deltaTime) {
+        if (this.isPaused) return;
+
+        const scaledDelta = deltaTime * this.timeScale;
+        this.universeTime += scaledDelta / 10; // Convert to years
+
+        // Update celestial bodies
+        this.updateCelestialBodies(scaledDelta);
+
+        // Update civilizations
+        this.updateCivilizations(scaledDelta);
+
+        // Update quantum fields
+        this.updateQuantumFields(scaledDelta);
+
+        // Update UI
+        this.updateUI();
+    }
+
+    updateCelestialBodies(deltaTime) {
+        // Simple orbital motion
+        for (const star of this.stars) {
+            if (star.mesh) {
+                // Stars orbit galaxy center
+                const galaxy = this.galaxies[star.galaxyId];
+                if (galaxy && galaxy.mesh) {
+                    const time = this.universeTime * 0.001;
+                    const orbitRadius = star.position.distanceTo(galaxy.position);
+                    const angle = time * (0.1 / Math.sqrt(orbitRadius));
+
+                    star.mesh.position.x = galaxy.position.x + Math.cos(angle) * orbitRadius;
+                    star.mesh.position.z = galaxy.position.z + Math.sin(angle) * orbitRadius;
+                }
+
+                // Planets orbit stars
+                for (const planet of star.planets) {
+                    if (planet.mesh) {
+                        const planetTime = this.universeTime * 0.01;
+                        const planetOrbitRadius = planet.position.distanceTo(star.position);
+                        const planetAngle = planetTime * (0.5 / Math.sqrt(planetOrbitRadius));
+
+                        planet.mesh.position.x = star.mesh.position.x + Math.cos(planetAngle) * planetOrbitRadius;
+                        planet.mesh.position.z = star.mesh.position.z + Math.sin(planetAngle) * planetOrbitRadius;
+
+                        // Rotate planet
+                        planet.mesh.rotation.y += deltaTime * 0.5;
+                    }
+                }
+            }
+        }
+    }
+
+    updateCivilizations(deltaTime) {
+        for (const civ of this.civilizations) {
+            // Civilization growth and development
+            if (Math.random() < deltaTime * 0.001) {
+                civ.population *= 1.001;
+                civ.technology += 0.0001;
+
+                // Chance to generate new story
+                if (Math.random() < 0.01) {
+                    this.generateStories(civ);
+                }
+            }
+
+            // Chance for civilization collapse
+            if (civ.technology > 0.8 && Math.random() < deltaTime * 0.0001) {
+                // Advanced civilizations might collapse or transcend
+                if (Math.random() < 0.3) {
+                    civ.stories.push(`The ${civ.species.name} collapsed due to ${this.getRandomCrisis()}.`);
+                    // Reset civilization
+                    civ.population = 1000;
+                    civ.technology = 0.1;
+                } else {
+                    civ.stories.push(`The ${civ.species.name} transcended to a higher state of existence.`);
+                }
+            }
+        }
+    }
+
+    updateQuantumFields(deltaTime) {
+        // Animate quantum fields
+        for (const field of this.quantumFields) {
+            field.rotation.z += deltaTime * 0.1;
+
+            // Pulsate the field
+            const scale = 1 + Math.sin(this.universeTime * 0.1) * 0.1;
+            field.scale.set(scale, scale, scale);
+        }
+    }
+
+    updateUI() {
+        document.getElementById('timeDisplay').textContent = this.universeTime.toFixed(2);
+        document.getElementById('scaleDisplay').textContent = this.timeScale.toFixed(2);
+        document.getElementById('civCount').textContent = this.civilizations.length;
+        document.getElementById('starCount').textContent = this.stars.length;
+        document.getElementById('planetCount').textContent = this.planets.length;
+    }
+
+    setupEventListeners() {
+        // Time scale control
+        const timeScaleSlider = document.getElementById('timeScale');
+        const timeScaleValue = document.getElementById('timeScaleValue');
+
+        timeScaleSlider.addEventListener('input', (e) => {
+            this.timeScale = parseFloat(e.target.value);
+            timeScaleValue.textContent = this.timeScale + 'x';
+        });
+
+        // Pause button
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            this.isPaused = !this.isPaused;
+            document.getElementById('pauseBtn').textContent = this.isPaused ? 'Resume' : 'Pause';
+        });
+
+        // Reset button
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if (confirm('Reset the universe? All progress will be lost.')) {
+                location.reload();
+            }
+        });
+
+        // View mode selector
+        document.getElementById('viewMode').addEventListener('change', (e) => {
+            this.changeViewMode(e.target.value);
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    changeViewMode(mode) {
+        // This would normally change the camera position and what's rendered
+        console.log(`Switching to ${mode} view`);
+
+        // For demo purposes, we'll just change the background
+        switch (mode) {
+            case 'galactic':
+                this.scene.background = new THREE.Color(0x000010);
+                break;
+            case 'solar':
+                this.scene.background = new THREE.Color(0x001020);
+                break;
+            case 'planetary':
+                this.scene.background = new THREE.Color(0x102030);
+                break;
+            case 'quantum':
+                this.scene.background = new THREE.Color(0x100020);
+                break;
+        }
+    }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+
+        const deltaTime = this.clock.getDelta();
+        this.update(deltaTime);
+
+        // Simple camera animation
+        const time = this.universeTime * 0.001;
+        this.camera.position.x = Math.cos(time * 0.1) * 100;
+        this.camera.position.z = Math.sin(time * 0.1) * 100;
+        this.camera.lookAt(0, 0, 0);
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+// Initialize the simulation when the page loads
+window.addEventListener('DOMContentLoaded', () => {
+    // Show loading progress
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(progressInterval);
+        }
+        document.getElementById('loadingProgress').textContent = Math.round(progress) + '%';
+    }, 200);
+
+    // Start the simulation after a short delay to show loading
+    setTimeout(() => {
+        new UniverseSimulator();
+    }, 2000);
+});
